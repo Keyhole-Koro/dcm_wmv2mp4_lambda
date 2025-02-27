@@ -1,0 +1,32 @@
+service: dcm-converter
+
+provider:
+  name: aws
+  runtime: python3.9
+  memorySize: 1024
+  timeout: 300
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+          Resource: "arn:aws:s3:::your-bucket/*"
+
+functions:
+  convert:
+    handler: lambda_function.lambda_handler
+    layers:
+      - {Ref: FfmpegLambdaLayer}
+    events:
+      - s3:
+          bucket: your-bucket
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .dcm
+            - suffix: .wmv
+
+layers:
+  ffmpeg:
+    path: ffmpeg-layer
