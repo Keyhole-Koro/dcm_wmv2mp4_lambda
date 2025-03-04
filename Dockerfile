@@ -1,44 +1,31 @@
-FROM amazonlinux:2
+FROM public.ecr.aws/lambda/python:3.8
 
-# Copy requirements.txt
-COPY . /src
-
-# Install dependencies
+# Install minimal dependencies
 RUN yum install -y \
+    wget \
     tar \
     xz \
-    zip \
-    python3 \
-    glibc \
-    glibc-common \
-    glibc-devel \
-    glibc-headers \
-    libstdc++ \
-    gzip \
-    mesa-libGL \
-    && yum clean all \
-    && rm -rf /var/cache/yum
+    && yum clean all
 
-# Install pip
-RUN python3 -m ensurepip --upgrade
-
-# Set PYTHONPATH to include the custom install directory
-ENV PYTHONPATH="/opt/python:${PYTHONPATH}"
-
-# Install Python dependencies to /opt/python
-RUN pip3 install --target /opt/python -r /src/requirements.txt
-
-# Install FFmpeg
+# Install static FFmpeg
 RUN curl -L -o ffmpeg.tar.xz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-i686-static.tar.xz \
     && mkdir -p /opt/ffmpeg \
     && tar -xf ffmpeg.tar.xz --strip-components=1 -C /opt/ffmpeg \
-    && rm ffmpeg.tar.xz
+    && rm ffmpeg.tar.xz \
+    && ln -s /opt/ffmpeg/ffmpeg /usr/local/bin/ffmpeg \
+    && ln -s /opt/ffmpeg/ffprobe /usr/local/bin/ffprobe
 
-# Create Lambda layer package
-RUN mkdir -p /opt/python/bin \
-    && cp /opt/ffmpeg/ffmpeg /opt/python/bin/ \
-    && cd /opt \
-    && zip -r9 /opt/ffmpeg_layer.zip python
+# Set FFmpeg environment variables
+ENV PATH="/opt/ffmpeg:${PATH}"
 
-# Set entry point (for local testing, not needed in Lambda)
-ENTRYPOINT [ "/bin/sh" ]
+# Copy function code and requirements
+WORKDIR ${LAMBDA_TASK_ROOT}
+COPY lambda_handler.py .
+COPY utils.py .
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install -r requirements.txt
+
+# Set the CMD to your handler
+CMD [ "lambda_handler.lambda_handler" ]

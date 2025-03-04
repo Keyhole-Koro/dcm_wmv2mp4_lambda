@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  lambda:
+    build: .
+    container_name: lambda
+    networks:
+      - lambda-net
+    volumes:
+      - .:/var/task
+    ports:
+      - "8080:8080"
+    environment:
+      - AWS_ACCESS_KEY_ID=mock
+      - AWS_SECRET_ACCESS_KEY=mock
+      - AWS_DEFAULT_REGION=us-east-1
+      - DOCKER_LAMBDA_STAY_OPEN=1
+      - DOCKER_LAMBDA_WATCH=1
+      - AWS_LAMBDA_FUNCTION_TIMEOUT=900
+
+networks:
+  lambda-net:
+    name: lambda-net

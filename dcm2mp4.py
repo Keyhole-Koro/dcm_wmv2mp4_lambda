@@ -1,11 +1,15 @@
 import os
 import pydicom
+from pydicom.pixel_data_handlers import convert_color_space
+
 import cv2
 import numpy as np
 from pathlib import Path
 import subprocess
 import tempfile
 import platform
+
+if_convert_color_space = True
 
 def get_ffmpeg_path():
     """Get FFmpeg executable path based on OS."""
@@ -57,6 +61,9 @@ def convert_dicom_to_mp4(input_path, output_path, framerate=30, quality='normal'
     output_dir.mkdir(parents=True, exist_ok=True)
 
     ds = pydicom.dcmread(input_path)
+    if if_convert_color_space:
+        convert_color_space(ds.pixel_array, "YBR_FULL", "RGB", per_frame=True)
+
     print(f"DICOM info - Rows: {ds.Rows}, Columns: {ds.Columns}")
     
     if "PixelData" not in ds or not hasattr(ds, "NumberOfFrames"):
@@ -102,11 +109,10 @@ def convert_dicom_to_mp4(input_path, output_path, framerate=30, quality='normal'
             ffmpeg_path, '-y',
             '-framerate', str(framerate),
             '-i', str(temp_dir / 'frame_%06d.png'),
-            '-c:v', 'libx264 -preset medium',
+            '-c:v', 'libx264',
             '-crf', str(crf_value),
             '-preset', 'medium',
-            '-vf', "colorspace=bt709:iall=bt709:fast=1",
-            '-x264-params', 'colorprim=bt709:transfer=bt709:colormatrix=bt709' \
+            '-vf', "format=yuv420p",
             '-pix_fmt', 'yuv420p',
             '-loglevel', 'debug',
             str(output_path)
@@ -134,7 +140,7 @@ def convert_dicom_to_mp4(input_path, output_path, framerate=30, quality='normal'
             print(f"Validation successful for {output_path}")
 
 if __name__ == "__main__":
-    input_file = "output/A0001.dcm"
+    input_file = "materials/A0001.dcm"
     output_files = {
         'low': "output/video_low.mp4",
         #'normal': "output/video_normal.mp4",
